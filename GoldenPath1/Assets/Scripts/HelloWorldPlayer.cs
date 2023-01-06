@@ -12,6 +12,15 @@ namespace HelloWorld {
             if (IsOwner) {
                 Move();
             }
+            Position.OnValueChanged += ChangePosition;
+        }
+
+        private void ChangePosition(Vector3 oldPlayerState, Vector3 newPlayerState) {
+            transform.position = newPlayerState;
+        }
+
+        private NetworkVariable<Vector3>.OnValueChangedDelegate PositionChange() {
+            throw new System.NotImplementedException();
         }
 
         public void Move() {
@@ -33,9 +42,9 @@ namespace HelloWorld {
             return new Vector3(Random.Range(-3f, 3f), 1f, Random.Range(-3f, 3f));
         }
 
-        void Update() {
-            //TODO Any OnChange or listener instead of Update for every frame?
-            transform.position = Position.Value;
-        }
+        // void Update() {
+        //     //TODO Any OnChange or listener instead of Update for every frame?
+        //     transform.position = Position.Value;
+        // }
     }
 }
