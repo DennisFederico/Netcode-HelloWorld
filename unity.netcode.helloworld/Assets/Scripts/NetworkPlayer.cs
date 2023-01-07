@@ -2,16 +2,15 @@ using System.Collections.Generic;
 using Unity.Collections;
 using Unity.Netcode;
 using UnityEngine;
-using UnityEngine.Serialization;
 using Random = UnityEngine.Random;
 
 public class NetworkPlayer : NetworkBehaviour {
     [SerializeField] private float speed = 3.0f;
     [SerializeField] private Transform spawnPrefab;
-    [SerializeField] private Transform spawn;
+    private Transform spawnInstance;
 
-    private NetworkVariable<int> _randomInt = new NetworkVariable<int>(0, NetworkVariableReadPermission.Owner, NetworkVariableWritePermission.Owner);
-    private NetworkVariable<MyDataType> _mydata = new NetworkVariable<MyDataType>(new MyDataType {
+    private readonly NetworkVariable<int> randomInt = new NetworkVariable<int>(0, NetworkVariableReadPermission.Owner, NetworkVariableWritePermission.Owner);
+    private readonly NetworkVariable<MyDataType> myData = new NetworkVariable<MyDataType>(new MyDataType {
         _int = 0,
         _bool = true,
         _message = "Player"
@@ -19,11 +18,11 @@ public class NetworkPlayer : NetworkBehaviour {
 
     
     public override void OnNetworkSpawn() {
-        _randomInt.OnValueChanged += (oldVal, newVal) => {
+        randomInt.OnValueChanged += (oldVal, newVal) => {
             Debug.Log($"{OwnerClientId} - valueChanged: {oldVal} to {newVal}");
         };
 
-        _mydata.OnValueChanged += (oldVal, newVal) => {
+        myData.OnValueChanged += (oldVal, newVal) => {
             Debug.Log($"My local client ID: {NetworkManager.Singleton.LocalClientId}");
             Debug.Log(OwnerClientId == NetworkManager.Singleton.LocalClientId
                 ? $"{OwnerClientId} - valueChanged: {oldVal._int}:{newVal._int} to {oldVal._bool}:{newVal._bool} - {newVal._message}"
@@ -59,28 +58,28 @@ public class NetworkPlayer : NetworkBehaviour {
         }
 
         if (Input.GetKeyDown(KeyCode.Y)) {
-            if (spawn) {
+            if (spawnInstance) {
                 //This keeps the object alive (at server) but removes from network (for clients)
-                if (spawn.GetComponent<NetworkObject>().IsSpawned) {
-                    spawn.GetComponent<NetworkObject>().Despawn(false);
-                    spawn.gameObject.SetActive(false);
+                if (spawnInstance.GetComponent<NetworkObject>().IsSpawned) {
+                    spawnInstance.GetComponent<NetworkObject>().Despawn(false);
+                    spawnInstance.gameObject.SetActive(false);
                 } else {
-                    spawn.transform.position += (Vector3.forward + Vector3.right) * 2f;
-                    spawn.GetComponent<NetworkObject>().Spawn(true);
-                    spawn.gameObject.SetActive(true); //<- The active state is not sync to clients
+                    spawnInstance.transform.position += (Vector3.forward + Vector3.right) * 2f;
+                    spawnInstance.GetComponent<NetworkObject>().Spawn(true);
+                    spawnInstance.gameObject.SetActive(true); //<- The active state is not sync to clients
                 }
                 //Destroy(spawn.gameObject);
             } else {
-                spawn = Instantiate(spawnPrefab);
-                spawn.GetComponent<NetworkObject>().Spawn(true);
+                spawnInstance = Instantiate(spawnPrefab);
+                spawnInstance.GetComponent<NetworkObject>().Spawn(true);
             }
         }
         
         if (Input.GetKeyDown(KeyCode.T)) {
             //_randomInt.Value = Random.Range(0, 100);
-            _mydata.Value = new MyDataType {
+            myData.Value = new MyDataType {
                 _int = Random.Range(0,100), 
-                _bool = !_mydata.Value._bool,
+                _bool = !myData.Value._bool,
                 _message = $"Player {OwnerClientId}"
             };
         }

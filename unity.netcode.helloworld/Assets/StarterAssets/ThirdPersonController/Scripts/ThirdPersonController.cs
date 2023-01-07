@@ -1,5 +1,8 @@
-﻿using Unity.Netcode;
+﻿using System;
+using Cinemachine;
+using Unity.Netcode;
 using UnityEngine;
+using Random = UnityEngine.Random;
 #if ENABLE_INPUT_SYSTEM && STARTER_ASSETS_PACKAGES_CHECKED
 using UnityEngine.InputSystem;
 #endif
@@ -106,6 +109,7 @@ namespace StarterAssets
         private CharacterController _controller;
         private StarterAssetsInputs _input;
         private GameObject _mainCamera;
+        private CinemachineVirtualCamera _vCamera;
 
         private const float _threshold = 0.01f;
 
@@ -123,28 +127,35 @@ namespace StarterAssets
             }
         }
 
-
-        private void Awake()
-        {
+        private void Awake() {
             // get a reference to our main camera
             if (_mainCamera == null)
             {
                 _mainCamera = GameObject.FindGameObjectWithTag("MainCamera");
+                _vCamera = _mainCamera.GetComponent<CinemachineVirtualCamera>();
+                var perlin = _vCamera.GetCinemachineComponent<CinemachineBasicMultiChannelPerlin>();
+                perlin.m_AmplitudeGain = 0.5f;
+                perlin.m_FrequencyGain = 0.3f;
             }
         }
 
-        private void Start()
-        {
+        public override void OnNetworkSpawn() {
             _cinemachineTargetYaw = CinemachineCameraTarget.transform.rotation.eulerAngles.y;
             
             _hasAnimator = TryGetComponent(out _animator);
             _controller = GetComponent<CharacterController>();
             _input = GetComponent<StarterAssetsInputs>();
-#if ENABLE_INPUT_SYSTEM && STARTER_ASSETS_PACKAGES_CHECKED
-            _playerInput = GetComponent<PlayerInput>();
-#else
-			Debug.LogError( "Starter Assets package is missing dependencies. Please use Tools/Starter Assets/Reinstall Dependencies to fix it");
-#endif
+
+            if (IsClient && IsOwner) {
+                _playerInput = GetComponent<PlayerInput>();
+                _playerInput.enabled = true;
+                _vCamera.Follow = transform.Find("PlayerCameraRoot");
+            }
+// #if ENABLE_INPUT_SYSTEM && STARTER_ASSETS_PACKAGES_CHECKED
+//             _playerInput = GetComponent<PlayerInput>();
+// #else
+// 			Debug.LogError( "Starter Assets package is missing dependencies. Please use Tools/Starter Assets/Reinstall Dependencies to fix it");
+// #endif
 
             AssignAnimationIDs();
 
@@ -153,8 +164,17 @@ namespace StarterAssets
             _fallTimeoutDelta = FallTimeout;
         }
 
-        private void Update() {
+        public override void OnNetworkDespawn() {
+            var perlin = _vCamera.GetCinemachineComponent<CinemachineBasicMultiChannelPerlin>();
+            perlin.m_AmplitudeGain = 0.0f;
+            perlin.m_FrequencyGain = 0.0f;
+            base.OnNetworkDespawn();
+        }
+
+        private void Update()
+        {
             if (!IsOwner) return;
+            
             _hasAnimator = TryGetComponent(out _animator);
 
             JumpAndGravity();
@@ -164,6 +184,7 @@ namespace StarterAssets
 
         private void LateUpdate()
         {
+            //if (!IsOwner) return;
             CameraRotation();
         }
 
